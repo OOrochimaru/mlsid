@@ -19,6 +19,15 @@ var MlsSchema = new Schema({
     },
     ListingContractDate: {
         type: Date
+    },
+    activestatus: {
+        type: Boolean,
+    },
+    closeDate:{
+        type: Date
+    },
+    closePrice: {
+        type: Number
     }
 
 });

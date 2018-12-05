@@ -23,4 +23,4 @@ var MlsSchema = new Schema({
 
 });
 
-module.exports = mongoose.model('MLS', MlsSchema);
+module.exports = mongoose.model('mlsproperties', MlsSchema);

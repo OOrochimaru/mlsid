@@ -38,8 +38,15 @@ const options = {
     'User-Agent': 'request'
   }
 };
+
+
+//steps
+//1. get token ->  localhost:3000/token (compulsory at initial run of the application)
+//2. get list of all modified property since 1950 -> localhost:3000/list1950
+//3. get info(list, modifieddate, images, active status etc) of all modified properties today -> localhost:3000/modifiedtoday
+
 var token;
-app.get('/go', function (req, res) {
+app.get('/token', function (req, res) {
   request.post('https://stage.retsrabbit.com/api/oauth/access_token', {
     form:
     {
@@ -55,7 +62,7 @@ app.get('/go', function (req, res) {
 });
 app.get('/list1950', function (req, res) {
   request.get({
-    url: 'https://stage.retsrabbit.com/api/v2/property?$filter=year(ModificationTimestamp) gt 2012',
+    url: 'https://stage.retsrabbit.com/api/v2/property?$filter=year(ModificationTimestamp) gt 1950',
     headers: {
       'Authorization': "Bearer " + token.access_token
     }, json: true
@@ -73,7 +80,7 @@ app.get('/list1950', function (req, res) {
 });
 
 
-//via insertmany
+//get every information on 
 app.get('/photosurl', function (req, res) {
   request.get({
     url: 'https://stage.retsrabbit.com/api/v2/property?$filter=year(ModificationTimestamp) gt 2012',
@@ -143,7 +150,7 @@ app.get('/photosurl1', function (req, res) {
   })
 });
 
-//via bluebird Promise
+//get the property of specified date (e.g. 2016-05-04 )
 app.get('/currentdatemodification', function (req, res) {
   request.get({
     url: 'https://stage.retsrabbit.com/api/v2/property?$filter=year(ModificationTimestamp) eq 2016 and month(ModificationTimestamp) eq 05 and day(ModificationTimestamp) eq 04',
@@ -158,6 +165,9 @@ app.get('/currentdatemodification', function (req, res) {
         imageURI: value.listing.photos.map((photo)=>{
           return photo.url
         }),
+        activestatus: value.listing.active,
+        closePrice: value.closePrice,
+        closeDate: value.closeDate
       }
     });
 
@@ -169,6 +179,8 @@ app.get('/currentdatemodification', function (req, res) {
   })
 });
 
+
+//get the modified properties of today
 app.get('/modifiedtoday', function (req, res) {
   var dateObj = new Date();
   var month = dateObj.getUTCMonth() + 1; //months from 1-12
@@ -188,9 +200,11 @@ app.get('/modifiedtoday', function (req, res) {
         imageURI: value.listing.photos.map((photo)=>{
           return photo.url
         }),
+        activeStatus: value.listing.active,
+        closePrice: value.closePrice,
+        closeDate: value.closeDate
       }
     });
-
     Today.insertMany(newBody).then(function(result){
       res.json(newBody);
     }).catch( (err) =>{
