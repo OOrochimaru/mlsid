@@ -68,14 +68,24 @@ app.get('/list1950', function (req, res) {
     }, json: true
   }, function (err, response, body) {
     console.log(token.access_token)
-    property = body;
-    var mls = new Mlsschema({
-      property: property,
-      count: property.value.length
+    let newData = body.value.map((value)=>{
+      return {
+        propertyID:value.listing.mls_id,
+        lastModified: value.ModificationTimestamp,
+        ListingContractDate: value.ListingContractDate,
+        imageURI:value.listing.photos.map((photo)=>{
+          return photo.url;
+        }),
+        property: value
+      }
     });
-    mls.save();
-    console.log(property)
-    return res.json({ property: property, count: property.value.length })
+    Mlsschema.insertMany(newData).then(function(results){
+      return res.json({data: newData});
+    }).catch(err=>{
+      return res.json({'success':false});
+
+    })
+
   })
 });
 
