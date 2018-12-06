@@ -3,7 +3,8 @@ var Schema = mongoose.Schema;
 
 var MlsSchema = new Schema({
     propertyID: {
-        type: String
+        type: String,
+        unique: true
     },
     count: {
         type: Number
@@ -19,7 +20,10 @@ var MlsSchema = new Schema({
     },
     ListingContractDate: {
         type: Date
-    }
+    },
+    activestatus: {
+        type: Boolean,
+    },
 
 });
 

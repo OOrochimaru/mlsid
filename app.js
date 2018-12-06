@@ -44,7 +44,9 @@ const options = {
 //1. get token ->  localhost:3000/token (compulsory at initial run of the application)
 //2. get list of all modified property since 1950 -> localhost:3000/list1950
 //3. get info(list, modifieddate, images, active status etc) of all modified properties today -> localhost:3000/modifiedtoday
-
+  //DONE: purge route will perform purge on database and addition as well
+//4. now the database is able to purge data based on sale of property
+    // and add new property  
 var token;
 app.get('/token', function (req, res) {
   request.post('https://stage.retsrabbit.com/api/oauth/access_token', {
@@ -62,27 +64,27 @@ app.get('/token', function (req, res) {
 });
 app.get('/list1950', function (req, res) {
   request.get({
-    url: 'https://stage.retsrabbit.com/api/v2/property?$filter=year(ModificationTimestamp) gt 1950',
+    url: 'https://stage.retsrabbit.com/api/v2/property?$filter=year(ModificationTimestamp) gt 2015',
     headers: {
       'Authorization': "Bearer " + token.access_token
     }, json: true
   }, function (err, response, body) {
     console.log(token.access_token)
-    let newData = body.value.map((value)=>{
+    let newData = body.value.map((value) => {
       return {
-        propertyID:value.listing.mls_id,
+        propertyID: value.listing.mls_id,
         lastModified: value.ModificationTimestamp,
         ListingContractDate: value.ListingContractDate,
-        imageURI:value.listing.photos.map((photo)=>{
+        imageURI: value.listing.photos.map((photo) => {
           return photo.url;
         }),
         property: value
       }
     });
-    Mlsschema.insertMany(newData).then(function(results){
-      return res.json({data: newData});
-    }).catch(err=>{
-      return res.json({'success':false});
+    Mlsschema.insertMany(newData).then(function (results) {
+      return res.json({ data: newData });
+    }).catch(err => {
+      return res.json({ 'success': false });
 
     })
 
@@ -98,23 +100,23 @@ app.get('/photosurl', function (req, res) {
       'Authorization': "Bearer " + token.access_token
     }, json: true
   }, function (err, response, body) {
-      let newBody = body.value.map((value)=>{
-        return {
-          propertyID:value.listing.mls_id,
-          lastModified: value.ModificationTimestamp,
-          ListingContractDate: value.ListingContractDate,
-          imageURI:value.listing.photos.map((photo)=>{
-            return photo.url;
-          }),
-        }
-      });
-      Mlsschema.insertMany(newBody).then(function(results){
-        return res.json({'success':true});
-      }).catch(err=>{
-        return res.json({'success':false});
+    let newBody = body.value.map((value) => {
+      return {
+        propertyID: value.listing.mls_id,
+        lastModified: value.ModificationTimestamp,
+        ListingContractDate: value.ListingContractDate,
+        imageURI: value.listing.photos.map((photo) => {
+          return photo.url;
+        }),
+      }
+    });
+    Mlsschema.insertMany(newBody).then(function (results) {
+      return res.json({ 'success': true });
+    }).catch(err => {
+      return res.json({ 'success': false });
 
-      })
-      
+    })
+
   })
 });
 //bluebird promise
@@ -168,22 +170,22 @@ app.get('/currentdatemodification', function (req, res) {
       'Authorization': "Bearer " + token.access_token
     }, json: true
   }, function (err, response, body) {
-    var newBody = body.value.map((value)=>{
+    var newBody = body.value.map((value) => {
       return {
         propertyID: value.listing.mls_id,
         lastModified: value.ModificationTimestamp,
-        imageURI: value.listing.photos.map((photo)=>{
+        imageURI: value.listing.photos.map((photo) => {
           return photo.url
         }),
         activestatus: value.listing.active,
         closePrice: value.closePrice,
-        closeDate: value.closeDate
+        closeDate: value.closeDate,
       }
     });
 
-    Today.insertMany(newBody).then(function(result){
+    Today.insertMany(newBody).then(function (result) {
       res.json(newBody);
-    }).catch( (err) =>{
+    }).catch((err) => {
       console.log("error")
     })
   })
@@ -202,12 +204,12 @@ app.get('/modifiedtoday', function (req, res) {
     headers: {
       'Authorization': "Bearer " + token.access_token
     }, json: true
-  }, function (err, response, body){
-    var newBody = body.value.map((value)=>{
+  }, function (err, response, body) {
+    var newBody = body.value.map((value) => {
       return {
         propertyID: value.listing.mls_id,
         lastModified: value.ModificationTimestamp,
-        imageURI: value.listing.photos.map((photo)=>{
+        imageURI: value.listing.photos.map((photo) => {
           return photo.url
         }),
         activeStatus: value.listing.active,
@@ -215,14 +217,74 @@ app.get('/modifiedtoday', function (req, res) {
         closeDate: value.closeDate
       }
     });
-    Today.insertMany(newBody).then(function(result){
+    Today.insertMany(newBody).then(function (result) {
       res.json(newBody);
-    }).catch( (err) =>{
+    }).catch((err) => {
       console.log("error")
     })
   })
 });
 
+app.get('/purge', async function (req, res, next) {
+  // await Mlsschema.find({}).then(function(property){
+  //   property.map(p => {
+  //     console.log(p.propertyID)
+  //     Today.find({propertyID: p.propertyID}).then(function(prop){
+  //       if (!prop) {
+  //         console.log("not found")
+  //         Mlsschema.remove({propertyID: p.propertyID}).then(function(){
+  //           console.log("removed", p.propertyID);
+  //         })
+  //       }
+  //       console.log("found")
+  //     });
+  //   })
+  // });
+  await Today.find({}).then(function (todayProperty) {
+    return res.json(todayProperty.forEach(tp => {
+      Mlsschema.findOne({ propertyID: tp.propertyID }).then(function (cp) {
+        console.log(tp)
+        if (!cp) {
+          //new properties has been added 
+          //so add to our database
+          var newData = new Mlsschema();
+          newData.propertyID = tp.propertyID;
+          newData.imageURI = tp.imageURI;
+          newData.lastModified = tp.lastModified;
+          newData.activestatus = tp.activestatus;
+          newData.save().then(function () {
+            console.log("saved")
+
+          }).catch(err => {
+          });
+        } else {
+          //no new data 
+        }
+      })
+    }))
+
+
+  }).catch(err=> {
+    console.log(err)
+  });
+
+  Mlsschema.find({}).then(function(mls){
+    mls.forEach(mlsP => {
+      Today.findOne({propertyID: mlsP.propertyID}).then(function(tp){
+        if (!tp) {
+          //this property has been sold 
+          //removing from our mls database
+          Mlsschema.remove({propertyID: mlsP.propertyID}).then(function(success){
+
+            if (!success) {
+              return res.sendStatus(404)
+            }
+          }).catch(err => console.log(err))
+        }
+      });
+    });
+  });
+})
 
 
 
